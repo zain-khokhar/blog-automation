@@ -288,7 +288,7 @@ export default function Dashboard() {
 
                 <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                     <MenuBar editor={editor} />
-                    <div ref={editorRef} className="p-12 min-h-[800px] prose prose-slate max-w-none bg-white">
+                    <div ref={editorRef} className="p-12 min-h-200 prose prose-slate max-w-none bg-white">
                         <EditorContent editor={editor} />
                     </div>
                 </div>
