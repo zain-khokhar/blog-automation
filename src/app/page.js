@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Loader2, Search, FileText, Check, Settings2, Sparkles, ArrowLeft, Download } from "lucide-react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 const MenuBar = ({ editor }) => {
   if (!editor) {
@@ -61,7 +59,46 @@ export default function Dashboard() {
     tone: "Professional",
   });
   const [blogContent, setBlogContent] = useState(null);
+  const [generatedBlogs, setGeneratedBlogs] = useState({}); // { topic: content }
   const editorRef = useRef(null);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('blog-automation-state');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.niche) setNiche(parsed.niche);
+        if (parsed.topics) setTopics(parsed.topics);
+        if (parsed.generatedBlogs) setGeneratedBlogs(parsed.generatedBlogs);
+        if (parsed.config) setConfig(parsed.config);
+        // We don't restore selectedTopic/blogContent automatically to let user choose, 
+        // or we could if we wanted to restore exact session.
+        // Let's restore if available to be helpful.
+        if (parsed.selectedTopic) {
+            setSelectedTopic(parsed.selectedTopic);
+            // If there was content for this topic, set it
+            if (parsed.generatedBlogs && parsed.generatedBlogs[parsed.selectedTopic]) {
+                setBlogContent(parsed.generatedBlogs[parsed.selectedTopic]);
+            }
+        }
+      } catch (e) {
+        console.error("Failed to load state", e);
+      }
+    }
+  }, []);
+
+  // Save state to localStorage on change
+  useEffect(() => {
+    const stateToSave = {
+      niche,
+      topics,
+      generatedBlogs,
+      config,
+      selectedTopic
+    };
+    localStorage.setItem('blog-automation-state', JSON.stringify(stateToSave));
+  }, [niche, topics, generatedBlogs, config, selectedTopic]);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -75,15 +112,27 @@ export default function Dashboard() {
         },
     },
     onUpdate: ({ editor }) => {
-        // Optional: Update state if needed for export later
-        // setBlogContent(editor.getHTML());
+        // Update the generatedBlogs state when user edits
+        if (selectedTopic) {
+            const newContent = editor.getHTML();
+            // Only update if content actually changed to avoid loops
+            if (newContent !== generatedBlogs[selectedTopic]) {
+                setGeneratedBlogs(prev => ({
+                    ...prev,
+                    [selectedTopic]: newContent
+                }));
+                // We don't setBlogContent here to avoid re-rendering loop with editor
+            }
+        }
     }
   });
 
-  // Effect to update editor content when blogContent changes
-  if (editor && blogContent && editor.getHTML() !== blogContent) {
-      editor.commands.setContent(blogContent);
-  }
+  // Effect to update editor content when blogContent changes (e.g. switching topics)
+  useEffect(() => {
+    if (editor && blogContent && editor.getHTML() !== blogContent) {
+        editor.commands.setContent(blogContent);
+    }
+  }, [blogContent, editor]);
 
   const handleResearch = async () => {
     if (!niche) return;
@@ -91,6 +140,11 @@ export default function Dashboard() {
     setTopics([]);
     setSelectedTopic(null);
     setBlogContent(null);
+    // We keep generatedBlogs in case they want to go back to previous niche results? 
+    // Or should we clear them? The user might want to keep them. 
+    // Let's keep them but maybe they won't be accessible if topics change.
+    // Actually, if topics change, the keys in generatedBlogs won't match displayed topics.
+    // That's fine, it acts as a cache.
 
     try {
       const res = await fetch("/api/research-topics", {
@@ -127,6 +181,10 @@ export default function Dashboard() {
         
         if (data.content) {
             setBlogContent(data.content);
+            setGeneratedBlogs(prev => ({
+                ...prev,
+                [selectedTopic]: data.content
+            }));
         } else {
             alert("Failed to generate blog: " + (data.error || "Unknown error"));
         }
@@ -138,41 +196,45 @@ export default function Dashboard() {
   };
 
   const handleDownloadPDF = async () => {
-    if (!editorRef.current) return;
+    if (!editor) return;
 
     try {
-        const element = editorRef.current;
-        const canvas = await html2canvas(element, {
-            scale: 2,
-            logging: false,
-            useCORS: true
-        });
-        const imgData = canvas.toDataURL('image/png');
+        // Get the HTML content directly from the editor
+        const htmlContent = editor.getHTML();
         
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
+        // Call the server-side API to generate the PDF
+        const response = await fetch('/api/generate-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                html: htmlContent,
+                title: selectedTopic || "Blog Post"
+            }),
         });
 
-        const imgWidth = 210; // A4 width in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to generate PDF');
+        }
+
+        // Download the PDF blob
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedTopic ? selectedTopic.substring(0, 30).replace(/[^a-z0-9]/gi, '_') : 'blog-post'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
         
-        // Add Header
-        pdf.setFontSize(20);
-        pdf.setTextColor(40, 40, 40);
-        pdf.text("AI Generated Blog", 105, 20, { align: "center" });
-        pdf.setFontSize(10);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(`Topic: ${selectedTopic || "Untitled"}`, 105, 28, { align: "center" });
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
         
-        // Add Content Image
-        pdf.addImage(imgData, 'PNG', 0, 40, imgWidth, imgHeight);
-        
-        pdf.save(`${selectedTopic ? selectedTopic.substring(0, 30) : 'blog-post'}.pdf`);
     } catch (error) {
         console.error("PDF Export Error:", error);
-        alert("Failed to export PDF");
+        alert("Failed to export PDF: " + error.message);
     }
   };
 
@@ -197,10 +259,19 @@ export default function Dashboard() {
             <section className="space-y-6 animate-in fade-in zoom-in duration-300">
                  <div className="flex items-center justify-between">
                     <button 
-                        onClick={() => setBlogContent(null)}
+                        onClick={() => {
+                            setBlogContent(null);
+                            // We keep selectedTopic so they can see what they selected, 
+                            // but if they want to select another one, they can just click it in the list.
+                            // However, the list is hidden when blogContent is true.
+                            // So we need to go back to a state where the list is visible.
+                            // If we just setBlogContent(null), the list becomes visible (because of the conditional rendering below).
+                            // But if we want to "deselect" the current topic to encourage picking a new one:
+                            setSelectedTopic(null);
+                        }}
                         className="text-slate-500 hover:text-slate-900 flex items-center gap-2"
                     >
-                        <ArrowLeft className="w-4 h-4" /> Back to Research
+                        <ArrowLeft className="w-4 h-4" /> Back to Topics
                     </button>
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-green-600 font-medium flex items-center gap-1">
@@ -263,7 +334,15 @@ export default function Dashboard() {
                         {topics.map((topic, idx) => (
                         <div 
                             key={idx}
-                            onClick={() => setSelectedTopic(topic)}
+                            onClick={() => {
+                                setSelectedTopic(topic);
+                                // If we already have content for this topic, load it
+                                if (generatedBlogs[topic]) {
+                                    setBlogContent(generatedBlogs[topic]);
+                                } else {
+                                    setBlogContent(null);
+                                }
+                            }}
                             className={`
                             group relative p-5 rounded-xl border cursor-pointer transition-all duration-200
                             ${selectedTopic === topic 
@@ -279,8 +358,8 @@ export default function Dashboard() {
                                 </div>
                                 <h3 className="font-medium text-slate-900 leading-snug">{topic}</h3>
                             </div>
-                            {selectedTopic === topic && (
-                                <div className="bg-blue-600 rounded-full p-1 text-white">
+                            {(selectedTopic === topic || generatedBlogs[topic]) && (
+                                <div className={`rounded-full p-1 text-white ${generatedBlogs[topic] ? "bg-green-500" : "bg-blue-600"}`}>
                                     <Check className="w-3 h-3" />
                                 </div>
                             )}
