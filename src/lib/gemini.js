@@ -10,7 +10,7 @@ class GeminiAutomation {
     this.page = null;
     this.isInitialized = false;
     // Store session in the project root/session
-    this.userDataDir = path.resolve(process.cwd(), 'session');
+    this.userDataDir = path.resolve(process.cwd(), 'session-data');
     // Default to false (visible) so user can see what's happening and login
     this.headless = false; 
     this.activeRequest = null;
@@ -38,7 +38,12 @@ class GeminiAutomation {
         headless: this.headless,
         userDataDir: this.userDataDir,
         defaultViewport: null,
-        args: ['--start-maximized', '--disable-blink-features=AutomationControlled'],
+        args: [
+            '--start-maximized', 
+            '--disable-blink-features=AutomationControlled',
+            '--no-sandbox',
+            '--disable-setuid-sandbox'
+        ],
       });
 
       this.page = await this.browser.newPage();
