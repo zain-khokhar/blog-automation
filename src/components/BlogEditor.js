@@ -130,7 +130,7 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
     content: initialContent || '<p>Start writing your amazing blog post...</p>',
     editorProps: {
       attributes: {
-        class: 'focus:outline-none min-h-[600px] px-12 py-8 prose prose-slate max-w-none prose-headings:font-bold prose-h1:text-4xl prose-h2:text-3xl prose-h3:text-2xl prose-p:text-base prose-a:text-blue-600 prose-img:rounded-lg',
+        class: 'focus:outline-none min-h-150 px-12 py-8 prose prose-slate max-w-none prose-headings:font-bold prose-h1:text-4xl prose-h2:text-3xl prose-h3:text-2xl prose-p:text-base prose-a:text-blue-600 prose-img:rounded-lg',
       },
     },
     onUpdate: ({ editor }) => {
@@ -255,7 +255,7 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
   };
 
   if (!editor) {
-    return <div className="flex items-center justify-center min-h-[600px]">
+    return <div className="flex items-center justify-center min-h-150">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         <p className="mt-4 text-slate-600">Loading editor...</p>
