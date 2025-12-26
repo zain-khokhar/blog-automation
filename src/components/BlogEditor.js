@@ -32,10 +32,10 @@ import Footnote from '@/lib/tiptap-extensions/Footnote';
 import Math from '@/lib/tiptap-extensions/Math';
 import HtmlEmbed from '@/lib/tiptap-extensions/HtmlEmbed';
 import Button from '@/lib/tiptap-extensions/Button';
-import Details from '@/lib/tiptap-extensions/Details';
+import Details, { Summary } from '@/lib/tiptap-extensions/Details';
 import Social from '@/lib/tiptap-extensions/Social';
 import Poll from '@/lib/tiptap-extensions/Poll';
-import Tabs from '@/lib/tiptap-extensions/Tabs';
+import Tabs, { TabItem } from '@/lib/tiptap-extensions/Tabs';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import EditorToolbar from './editor/EditorToolbar';
@@ -117,9 +117,11 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
       HtmlEmbed,
       Button,
       Details,
+      Summary,
       Social,
       Poll,
       Tabs,
+      TabItem,
       Placeholder.configure({
         placeholder: 'Start writing your content here...',
       }),

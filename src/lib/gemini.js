@@ -12,7 +12,7 @@ class GeminiAutomation {
     // Store session in the project root/session
     this.userDataDir = path.resolve(process.cwd(), 'session-data');
     // Default to false (visible) so user can see what's happening and login
-    this.headless = false; 
+    this.headless = true; 
     this.activeRequest = null;
   }
 

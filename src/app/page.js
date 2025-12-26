@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, Search, FileText, Check, Settings2, Sparkles, ArrowLeft, Download, Edit3 } from "lucide-react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -64,7 +64,7 @@ export default function Dashboard() {
   const [blogContent, setBlogContent] = useState(null);
   const [useAdvancedEditor, setUseAdvancedEditor] = useState(false);
   const [currentPostId, setCurrentPostId] = useState(null);
-  const editorRef = useState(null);
+  const editorRef = useRef(null);
 
   const editor = useEditor({
     immediatelyRender: false,

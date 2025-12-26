@@ -42,3 +42,5 @@ next-env.d.ts
 
 # gemini session
 session/
+
+session-data/
