@@ -359,7 +359,7 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               isEnhancing
                 ? 'bg-purple-100 text-purple-600 cursor-wait'
-                : 'bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
+                : 'bg-linear-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
             }`}
           >
             {isEnhancing ? (
@@ -394,7 +394,7 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
       
       {/* Enhancement Progress */}
       {(isEnhancing || enhancementProgress) && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-b border-purple-200 px-6 py-3 flex items-center gap-3">
+        <div className="bg-linear-to-r from-purple-50 to-blue-50 border-b border-purple-200 px-6 py-3 flex items-center gap-3">
           <div className="animate-pulse">
             <Wand2 className="w-5 h-5 text-purple-600" />
           </div>

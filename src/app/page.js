@@ -773,7 +773,7 @@ export default function Dashboard() {
               {directMode ? (
                 /* Direct Topic Input Mode */
                 <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl border border-purple-200">
+                   <div className="bg-linear-to-r from-purple-50 to-blue-50 p-6 rounded-xl border border-purple-200">
                     <p className="text-sm text-slate-600 mb-4">
                       <strong>💡 Pro Tip:</strong> Enter your exact blog topic and we'll generate a complete blog post for you. Be specific for better results!
                     </p>
