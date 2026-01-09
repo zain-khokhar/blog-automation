@@ -42,6 +42,7 @@ import EditorToolbar from './editor/EditorToolbar';
 import MediaUploader from './editor/MediaUploader';
 import SEOPanel from './editor/SEOPanel';
 import { calculateSEOScore, calculateReadability, generateSlug } from '@/utils/seo';
+import { Wand2, Loader2, Image as ImageIcon } from 'lucide-react';
 
 const lowlight = createLowlight(common);
 
@@ -58,6 +59,8 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
   const [readability, setReadability] = useState(null);
   const [showMediaUploader, setShowMediaUploader] = useState(false);
   const [showSEOPanel, setShowSEOPanel] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhancementProgress, setEnhancementProgress] = useState('');
   const saveTimeoutRef = useRef(null);
 
   const editor = useEditor({
@@ -208,6 +211,71 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
     });
   }, []);
 
+  // Handle AI enhancement from toolbar
+  const handleAIEnhance = useCallback((type, data) => {
+    if (type === 'meta' && data) {
+      if (data.metaTitle) updateMetadata('metaTitle', data.metaTitle);
+      if (data.metaDescription) updateMetadata('metaDescription', data.metaDescription);
+      setShowSEOPanel(true); // Show SEO panel to display the generated meta
+    }
+  }, [updateMetadata]);
+
+  // Generate and insert AI images
+  const handleGenerateImages = useCallback(async () => {
+    if (!editor) return;
+    
+    setIsEnhancing(true);
+    setEnhancementProgress('Analyzing content for image placement...');
+    
+    try {
+      const content = editor.getHTML();
+      const topic = metadata.metaTitle || 'Blog post';
+      
+      const res = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blogContent: content,
+          topic: topic,
+          imageCount: 1,
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.success && data.images?.length) {
+        setEnhancementProgress('Inserting hero image...');
+        
+        // Insert ONLY ONE image right below the title
+        let updatedContent = content;
+        const heroImage = data.images[0]; // Use only the first (and only) image
+        
+        const imageHtml = `
+          <figure class="my-8 text-center">
+            <img src="${heroImage.url}" alt="${heroImage.alt || ''}" class="w-full max-w-2xl mx-auto rounded-xl shadow-lg" />
+            ${heroImage.caption ? `<figcaption class="mt-3 text-sm text-gray-600 italic">${heroImage.caption}</figcaption>` : ''}
+          </figure>
+        `;
+        
+        // Insert after h1 only
+        updatedContent = updatedContent.replace(/<\/h1>/i, `</h1>${imageHtml}`);
+        
+        editor.commands.setContent(updatedContent);
+        setEnhancementProgress('Hero image added successfully!');
+      } else {
+        setEnhancementProgress('No images generated');
+      }
+    } catch (error) {
+      console.error('Image generation failed:', error);
+      setEnhancementProgress('Failed to generate images');
+    } finally {
+      setTimeout(() => {
+        setIsEnhancing(false);
+        setEnhancementProgress('');
+      }, 2000);
+    }
+  }, [editor, metadata.metaTitle]);
+
   // Handle media insertion
   const handleMediaInsert = useCallback((url, type, options = {}) => {
     if (!editor) return;
@@ -286,6 +354,22 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleGenerateImages}
+            disabled={isEnhancing}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              isEnhancing
+                ? 'bg-purple-100 text-purple-600 cursor-wait'
+                : 'bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
+            }`}
+          >
+            {isEnhancing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <ImageIcon className="w-4 h-4" />
+            )}
+            {isEnhancing ? 'Generating...' : 'Add AI Images'}
+          </button>
+          <button
             onClick={() => setShowSEOPanel(!showSEOPanel)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               showSEOPanel
@@ -307,11 +391,25 @@ export default function BlogEditor({ initialContent, initialMetadata, postId, on
           </div>
         </div>
       </div>
+      
+      {/* Enhancement Progress */}
+      {(isEnhancing || enhancementProgress) && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-b border-purple-200 px-6 py-3 flex items-center gap-3">
+          <div className="animate-pulse">
+            <Wand2 className="w-5 h-5 text-purple-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-purple-700">{enhancementProgress}</p>
+            <p className="text-xs text-purple-600">AI is analyzing your content and generating relevant images...</p>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <EditorToolbar
         editor={editor}
         onMediaClick={() => setShowMediaUploader(true)}
+        onAIEnhance={handleAIEnhance}
       />
 
       {/* Editor Layout */}

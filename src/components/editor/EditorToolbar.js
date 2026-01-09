@@ -10,18 +10,68 @@ import {
   Type, Palette, Highlighter,
   IndentDecrease, IndentIncrease,
   ListTree, Hash, MessageSquare, Sigma, FileCode,
-  MousePointer2, ChevronDown, Share2, Vote, Layout
+  MousePointer2, ChevronDown, Share2, Vote, Layout,
+  Wand2, Loader2, Sparkles
 } from 'lucide-react';
 import { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 
-export default function EditorToolbar({ editor, onMediaClick }) {
+export default function EditorToolbar({ editor, onMediaClick, onAIEnhance }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   if (!editor) return null;
+
+  // AI Enhancement handlers
+  const handleAIAction = async (action) => {
+    const selection = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(selection.from, selection.to, ' ');
+    
+    if (!selectedText && ['improve-text', 'expand', 'shorten', 'change-tone'].includes(action)) {
+      alert('Please select some text first');
+      return;
+    }
+
+    setAiLoading(true);
+    setShowAIMenu(false);
+
+    try {
+      const res = await fetch('/api/ai-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          text: selectedText,
+          content: editor.getText(),
+          tone: 'professional',
+          targetWords: 200,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        if (action === 'improve-text' || action === 'expand' || action === 'shorten' || action === 'grammar-check') {
+          // Replace selected text with improved version
+          editor.chain().focus().deleteSelection().insertContent(data.result).run();
+        } else if (action === 'generate-meta' && data.data) {
+          // Notify parent about meta generation
+          if (onAIEnhance) {
+            onAIEnhance('meta', data.data);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('AI action failed:', error);
+      alert('AI enhancement failed. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const addLink = () => {
     if (linkUrl) {
@@ -461,7 +511,7 @@ export default function EditorToolbar({ editor, onMediaClick }) {
         </div>
 
         {/* Undo/Redo */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 border-r border-slate-300 pr-2">
           <button
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
@@ -478,6 +528,77 @@ export default function EditorToolbar({ editor, onMediaClick }) {
           >
             <Redo className="w-4 h-4" />
           </button>
+        </div>
+        
+        {/* AI Enhancement */}
+        <div className="flex items-center gap-1 relative">
+          <button
+            onClick={() => setShowAIMenu(!showAIMenu)}
+            disabled={aiLoading}
+            className={`p-2 rounded bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600 transition-all flex items-center gap-1.5 ${aiLoading ? 'opacity-70' : ''}`}
+            title="AI Enhance"
+          >
+            {aiLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
+            <span className="text-xs font-medium">AI</span>
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          
+          {showAIMenu && (
+            <div className="absolute top-full right-0 mt-2 z-50 bg-white rounded-xl shadow-xl border border-slate-200 w-64 overflow-hidden">
+              <div className="p-3 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-slate-200">
+                <p className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  AI Enhancement Tools
+                </p>
+              </div>
+              <div className="p-2">
+                <p className="text-xs text-slate-500 px-2 py-1 uppercase font-semibold">Text Improvements</p>
+                <button
+                  onClick={() => handleAIAction('improve-text')}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 rounded-lg flex items-center gap-2"
+                >
+                  <Wand2 className="w-4 h-4 text-purple-600" />
+                  Improve Selected Text
+                </button>
+                <button
+                  onClick={() => handleAIAction('grammar-check')}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 rounded-lg flex items-center gap-2"
+                >
+                  <Code className="w-4 h-4 text-green-600" />
+                  Fix Grammar & Spelling
+                </button>
+                <button
+                  onClick={() => handleAIAction('expand')}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 rounded-lg flex items-center gap-2"
+                >
+                  <MoreHorizontal className="w-4 h-4 text-blue-600" />
+                  Expand Selection
+                </button>
+                <button
+                  onClick={() => handleAIAction('shorten')}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 rounded-lg flex items-center gap-2"
+                >
+                  <AlignJustify className="w-4 h-4 text-orange-600" />
+                  Make More Concise
+                </button>
+                
+                <div className="border-t border-slate-100 mt-2 pt-2">
+                  <p className="text-xs text-slate-500 px-2 py-1 uppercase font-semibold">SEO & Meta</p>
+                  <button
+                    onClick={() => handleAIAction('generate-meta')}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 rounded-lg flex items-center gap-2"
+                  >
+                    <Hash className="w-4 h-4 text-indigo-600" />
+                    Generate Meta Title & Description
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

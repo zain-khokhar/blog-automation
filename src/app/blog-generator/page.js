@@ -14,6 +14,58 @@ export default function BlogGenerator() {
   const [seoAnalysis, setSeoAnalysis] = useState(null);
   const [niche, setNiche] = useState(''); // Replaces siteUrl
 
+  const humanizeBlog = () => {
+    let content = blogContent;
+    
+    // Remove em dashes and replace with regular hyphens
+    content = content.replace(/—/g, '-');
+    
+    // Remove long separator lines (3 or more dashes/underscores/equals/asterisks)
+    content = content.replace(/^[-_=*]{3,}$/gm, '');
+    content = content.replace(/^\s*[-_=*]{3,}\s*$/gm, '');
+    
+    // Remove excessive newlines (more than 2 consecutive)
+    content = content.replace(/\n{3,}/g, '\n\n');
+    
+    // Replace fancy quotes with regular quotes
+    content = content.replace(/[""]/g, '"');
+    content = content.replace(/['']/g, "'");
+    
+    // Remove excessive exclamation marks
+    content = content.replace(/!{2,}/g, '!');
+    
+    // Remove AI-style phrases
+    const aiPhrases = [
+      /\*\*Note:\*\*/gi,
+      /\*\*Important:\*\*/gi,
+      /\*\*Disclaimer:\*\*/gi,
+      /In conclusion,/gi,
+      /In summary,/gi,
+      /To sum up,/gi
+    ];
+    
+    aiPhrases.forEach(phrase => {
+      content = content.replace(phrase, '');
+    });
+    
+    // Remove markdown bold/italic markers that look too formatted
+    content = content.replace(/\*\*\*(.+?)\*\*\*/g, '$1');
+    
+    // Remove excessive bullet point variations
+    content = content.replace(/^[\s]*[•●○■□▪▫]\s/gm, '- ');
+    
+    // Clean up multiple spaces
+    content = content.replace(/ {2,}/g, ' ');
+    
+    // Trim whitespace from each line
+    content = content.split('\n').map(line => line.trim()).join('\n');
+    
+    // Remove trailing/leading whitespace
+    content = content.trim();
+    
+    setBlogContent(content);
+  };
+
   const fetchTopics = async () => {
     setLoading(true);
     try {
@@ -204,7 +256,16 @@ export default function BlogGenerator() {
             <div className="lg:col-span-2 space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Generated Content</h2>
-                <button onClick={() => setStep(2)} className="text-gray-500 hover:text-gray-700">Back to Keywords</button>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={humanizeBlog}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 font-medium"
+                  >
+                    <Wand2 size={18} />
+                    Humanize
+                  </button>
+                  <button onClick={() => setStep(2)} className="text-gray-500 hover:text-gray-700">Back to Keywords</button>
+                </div>
               </div>
               <div className="bg-white p-8 rounded-xl shadow-sm prose max-w-none">
                 <pre className="whitespace-pre-wrap font-sans text-gray-800">{blogContent}</pre>
@@ -237,7 +298,7 @@ export default function BlogGenerator() {
                     <ul className="space-y-2">
                       {seoAnalysis.improvements?.map((imp, i) => (
                         <li key={i} className="text-sm text-gray-700 flex gap-2">
-                          <span className="text-blue-500">•</span> {imp}
+                          <span className="text-blue-500">•</span> {typeof imp === 'string' ? imp : (imp?.text || imp?.suggestion || JSON.stringify(imp))}
                         </li>
                       ))}
                     </ul>
